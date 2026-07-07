@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>cuowei pixel</title>
+    
+
+  </head>
+    
+  <body>
+  <!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>艺术图形生成器 Pro - 极速丝滑版</title>
+    <!-- 引入 OpenCV.js -->
+    <script async src="https://docs.opencv.org/4.5.4/opencv.js" onload="cvLoaded()"></script>
+    <style>
+        /* 兼容性修复：强制所有元素使用统一盒子模型 */
+        * { box-sizing: border-box; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+        body { 
+            background: #1a1a1a; color: #1a1a1a; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            margin: 0; padding: 0; display: flex; width: 100vw; height: 100vh; overflow: hidden; 
+        }
+
+        .sidebar, .ctrl label, .ratio-text, .btn-white, .btn-black, .hex-display, .dropdown-ctrl, span[id^="val-"] {
+            font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-weight: 900;
+        }
+
+        .sidebar {
+            width: 360px; height: 100vh; 
+            background: #7ebfff;
+            display: flex; flex-direction: column; overflow-y: auto; padding: 30px 25px;
+            border-right: none; z-index: 10; flex-shrink: 0;
+            /* 隐藏 Safari 默认的弹性滚动可能导致的白边 */
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .panel { display: flex; flex-direction: column; gap: 20px; } 
+        .ctrl { display: flex; flex-direction: column; gap: 8px; } 
+
+        .ctrl label { 
+            font-size: 11px; color: #000; display: flex; justify-content: space-between;
+            align-items: center; text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        .file-input-container, .dropdown-ctrl {
+            background: #fff; border: none; padding: 10px; font-size: 11px;
+            width: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            position: relative; height: 36px; outline: none; border-radius: 0;
+        }
+
+        .dropdown-ctrl {
+            appearance: none; -webkit-appearance: none;
+            text-align: center; text-align-last: center; 
+            font-weight: 900;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 15px center;
+            margin-bottom: 10px;
+            border-radius: 0;
+        }
+
+        #fileNameDisplay { 
+            max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
+            display: inline-block; text-align: center;
+        }
+
+        .clear-btn {
+            position: absolute; right: 12px; color: #aaa; font-size: 16px; font-weight: 300;
+            line-height: 1; cursor: pointer; display: none; transition: color 0.2s; user-select: none;
+        }
+        .clear-btn:hover { color: #666; }
+
+        input[type="range"] {
+            -webkit-appearance: none; appearance: none; width: 100%; height: 2px; background: rgba(0,0,0,0.2); margin: 4px 0 16px 0; outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; width: 8px; height: 16px; background: #000; cursor: pointer; border-radius: 0;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 8px; height: 16px; background: #000; cursor: pointer; border: none; border-radius: 0;
+        }
+
+        .gradient-preview-bar { width: 100%; height: 35px; border: none; background: #fff; margin-bottom: 0; }
+        .mode-selector { display: flex; gap: 0; margin-bottom: 10px; }
+        .btn-mode { 
+            flex: 1; background: #fff; border: none; font-size: 9px; 
+            font-weight: 600; padding: 6px 0; cursor: pointer; 
+            text-transform: uppercase; border-right: 1px solid #eee; border-radius: 0;
+        }
+        .btn-mode.active { background: #000; color: #fff; border-right: none; }
+
+        .stops-row { display: flex; width: 100%; gap: 0; }
+        .stop-square { flex: 1; height: 18px; cursor: pointer; border: none; }
+        .active-stop-edit { display: flex; background: #fff; height: 35px; align-items: center; width: 100%; margin-top: 0; overflow: hidden; }
+        .edit-label { font-size: 9px; font-weight: 900; padding: 0 8px; color: #666; border-right: 1px solid #eee; height: 100%; display: flex; align-items: center; flex-shrink: 0; }
+        
+        .color-dot { width: 10px; height: 10px; border-radius: 50%; margin-left: 10px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.1); cursor: pointer; }
+        
+        .bg-ctrl-group { display: flex; flex-direction: row; background: #fff; height: 35px; width: 100%; align-items: center; }
+        .bg-color-block { flex: 1; height: 100%; cursor: pointer; border-right: 1px solid #eee; } 
+        .hex-display { flex: 1; text-align: center; border: none; font-size: 11px; outline: none; background: transparent; color: #000; height: 100%; }
+
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+        .btn-white { background: #fff; border: none; padding: 8px; font-size: 10px; width: 100%; cursor: pointer; text-transform: uppercase; border-radius: 0; }
+        .btn-black { background: #000; color: #fff; border: none; padding: 16px; font-size: 12px; cursor: pointer; text-transform: uppercase; margin-top: 10px; border-radius: 0; }
+
+        .footer-text { margin-top: auto; padding-top: 20px; text-align: center; font-size: 9px; color: rgba(0,0,0,0.6); font-weight: bold; }
+
+        .canvas-area { 
+            flex: 1; 
+            background: #f2dfdf; 
+            position: relative; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            overflow: hidden; 
+        }
+        canvas { 
+            max-width: 100%; 
+            max-height: 100%; 
+            object-fit: contain; 
+            background: transparent; 
+            cursor: default; 
+            image-rendering: -webkit-optimize-contrast; /* 确保 Safari 画布清晰度 */
+            image-rendering: crisp-edges;
+        }
+        #upload { display: none; }
+    </style>
+</head>
+<body>
+<div class="sidebar">
+    <div class="panel">
+        <div class="ctrl">
+            <label>1. 图像源 (IMAGE SOURCE)</label>
+            <div class="file-input-container">
+                <div id="fileInfo" onclick="document.getElementById('upload').click()" style="width:100%; text-align:center;">
+                    <span id="fileNameDisplay">选择图片 SELECT IMAGE</span>
+                </div>
+                <span id="clearBtn" class="clear-btn" onclick="clearImage(event)">✕</span>
+            </div>
+            <input type="file" id="upload" accept="image/*">
+        </div>
+
+        <div class="ctrl">
+            <label>2. 色彩配置 (COLORS)</label>
+            <div style="display: flex; flex-direction: column; gap: 5px;">
+                <label style="font-size: 8px; opacity: 0.7;">背景 (BG)</label>
+                <div class="bg-ctrl-group">
+                    <input type="color" id="colorBg" value="#f2dfdf" style="position:absolute; visibility:hidden;" oninput="handleBgColor(this.value)">
+                    <div id="colorBgBlock" class="bg-color-block" style="background-color: #f2dfdf;" onclick="document.getElementById('colorBg').click()"></div>
+                    <input type="text" class="hex-display" id="hexBg" value="#F2DFDF" oninput="handleBgHex(this.value)">
+                </div>
+            </div>
+
+            <div style="margin-top: 10px;">
+                <label style="font-size: 8px; opacity: 0.7; margin-bottom: 8px; display: block;">图形渐变 (GRADIENT)</label>
+                <div class="gradient-preview-bar" id="gradPreview"></div>
+                <div class="mode-selector">
+                    <button class="btn-mode" id="mode3" onclick="setGradientMode(3)">3 Colors</button>
+                    <button class="btn-mode" id="mode5" onclick="setGradientMode(5)">5 Colors</button>
+                    <button class="btn-mode active" id="mode7" onclick="setGradientMode(7)">7 Colors</button>
+                </div>
+                <div class="stops-row" id="stopsRow"></div>
+                <div class="active-stop-edit" id="stopEditor">
+                    <div class="edit-label">HEX</div>
+                    <div class="color-dot" id="stopDot" onclick="document.getElementById('stopPicker').click()"></div>
+                    <input type="text" class="stop-hex-input hex-display" id="currStopHex" oninput="updateCurrStopColor(this.value)">
+                    <div class="edit-label edit-label-pos" style="border-left: 1px solid #eee; border-right: none;">POS</div>
+                </div>
+                <input type="color" id="stopPicker" style="position:absolute; visibility:hidden;">
+            </div>
+        </div>
+
+        <div class="ctrl">
+            <label>智能参数 (SMART PARAMS)</label>
+            <select id="graphicDir" class="dropdown-ctrl" onchange="requestRender(false)">
+                <option value="horiz">横向切片 (HORIZONTAL)</option>
+                <option value="vert">纵向切片 (VERTICAL)</option>
+            </select>
+            <label>智能阈值 (THRESHOLD) <span id="val-threshold">250</span></label>
+            <input type="range" id="threshold" min="0" max="255" value="250">
+            <label>边缘加宽 (PADDING) <span id="val-expansion">10</span></label>
+            <input type="range" id="expansion" min="0" max="100" value="10">
+            <label>切片粗细 (SLICE SIZE) <span id="val-miterLimit">40</span></label>
+            <input type="range" id="miterLimit" min="2" max="150" value="40">
+            <label>渐变范围 (GRADIENT RANGE) <span id="val-gradRange">100</span></label>
+            <input type="range" id="gradRange" min="10" max="200" value="100">
+            <label>图形缩放 (GRAPHIC SCALE) <span id="val-graphicScale">0.7</span></label>
+            <input type="range" id="graphicScale" min="0.1" max="3.0" step="0.01" value="0.7">
+        </div>
+
+        <div class="ctrl">
+            <label>3. 导出 (EXPORT)</label>
+            <div class="btn-group">
+                <button class="btn-white" onclick="exportHQ('jpg')">JPG</button>
+                <button class="btn-white" onclick="exportHQ('png')">PNG</button>
+                <button class="btn-white" onclick="downloadSVG()">SVG</button>
+            </div>
+        </div>
+        <button class="btn-black" onclick="randomizeGradient()">随机渐变色彩</button>
+    </div>
+    <div class="footer-text">DESIGN BY TYPE PLAY STUDIO 2026.</div>
+</div>
+
+<div class="canvas-area" id="canvasArea"><canvas id="canvas"></canvas></div>
+
+<script>
+    let cvReady = false;
+    let sourceMat = null;
+    let needsRecalc = true; 
+    let renderPending = false;
+    let activeStopIndex = 0;
+    let cachedMaskData = null;
+    let maskW, maskH;
+
+    const colors = { 
+        neonBlue: '#00F0FF', neonPink: '#FF007F', brightYellow: '#FFF000', electricPurple: '#9D00FF', vibrantGreen: '#00FF42'
+    };
+    let gradientStops = [];
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    
+    const FIXED_SCAN_RES = 1000; 
+
+    function cvLoaded() { cvReady = true; if(window.cv) { requestRender(true); } else { setTimeout(cvLoaded, 100); } }
+
+    function init() {
+        setGradientMode(7);
+        ['threshold', 'expansion', 'miterLimit', 'graphicScale', 'gradRange'].forEach(id => {
+            const el = document.getElementById(id);
+            el.oninput = function() {
+                document.getElementById('val-' + id).textContent = this.value;
+                requestRender(id === 'threshold');
+            };
+        });
+        document.getElementById('stopPicker').oninput = (e) => {
+            gradientStops[activeStopIndex].color = e.target.value;
+            renderGradientUI(); requestRender(false); 
+        };
+        initDragAndDrop();
+    }
+
+    function initDragAndDrop() {
+        window.addEventListener('dragover', e => e.preventDefault());
+        window.addEventListener('drop', e => {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) handleFile(file);
+        });
+    }
+
+    function setGradientMode(mode) {
+        if (mode === 3) gradientStops = [{pos: 0, color: colors.neonBlue}, {pos: 0.5, color: colors.neonPink}, {pos: 1, color: colors.neonBlue}];
+        else if (mode === 5) gradientStops = [{pos: 0, color: colors.electricPurple}, {pos: 0.25, color: colors.neonBlue}, {pos: 0.5, color: colors.brightYellow}, {pos: 0.75, color: colors.neonBlue}, {pos: 1, color: colors.electricPurple}];
+        else gradientStops = [{pos: 0, color: colors.neonPink}, {pos: 0.16, color: colors.electricPurple}, {pos: 0.33, color: colors.neonBlue}, {pos: 0.5, color: colors.vibrantGreen}, {pos: 0.67, color: colors.neonBlue}, {pos: 0.84, color: colors.electricPurple}, {pos: 1, color: colors.neonPink}];
+        document.querySelectorAll('.btn-mode').forEach(btn => btn.classList.toggle('active', btn.id === 'mode' + mode));
+        renderGradientUI(); requestRender(false); 
+    }
+
+    function renderGradientUI() {
+        const cssGrad = gradientStops.map(s => `${s.color} ${s.pos * 100}%`).join(', ');
+        document.getElementById('gradPreview').style.background = `linear-gradient(to right, ${cssGrad})`;
+        const row = document.getElementById('stopsRow'); row.innerHTML = '';
+        gradientStops.forEach((stop, i) => {
+            const sq = document.createElement('div');
+            sq.className = `stop-square ${i === activeStopIndex ? 'active' : ''}`;
+            sq.style.backgroundColor = stop.color;
+            if(i === activeStopIndex) sq.style.boxShadow = 'inset 0 0 0 2px rgba(0,0,0,0.3)';
+            sq.onclick = () => { activeStopIndex = i; renderGradientUI(); };
+            row.appendChild(sq);
+        });
+        document.getElementById('currStopHex').value = gradientStops[activeStopIndex].color.toUpperCase();
+        document.getElementById('stopDot').style.backgroundColor = gradientStops[activeStopIndex].color;
+    }
+
+    upload.onchange = (e) => {
+        const file = e.target.files[0]; if (file) handleFile(file);
+    };
+
+    function handleFile(file) {
+        document.getElementById('fileNameDisplay').textContent = file.name;
+        document.getElementById('clearBtn').style.display = 'block';
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const img = new Image();
+            img.onload = () => {
+                if(sourceMat) { try { sourceMat.delete(); } catch(e) {} }
+                const temp = document.createElement('canvas'); temp.width = img.width; temp.height = img.height;
+                const tCtx = temp.getContext('2d'); tCtx.fillStyle = "white"; tCtx.fillRect(0,0,temp.width,temp.height);
+                tCtx.drawImage(img, 0, 0); 
+                sourceMat = cv.imread(temp); 
+                canvas.width = 1600; 
+                canvas.height = Math.round(1600 * (img.height / img.width));
+                requestRender(true);
+            }; img.src = ev.target.result;
+        }; reader.readAsDataURL(file);
+    }
+
+    function clearImage(e) {
+        e.stopPropagation(); sourceMat = null; cachedMaskData = null;
+        document.getElementById('upload').value = '';
+        document.getElementById('fileNameDisplay').textContent = '选择图片 SELECT IMAGE';
+        document.getElementById('clearBtn').style.display = 'none';
+        requestRender(true);
+    }
+
+    function randomizeGradient() {
+        gradientStops.forEach(stop => { stop.color = `#${Math.floor(Math.random()*16777215).toString(16).padStart(6,'0')}`; });
+        renderGradientUI(); requestRender(false); 
+    }
+
+    function requestRender(recalc = true) {
+        if (recalc) needsRecalc = true;
+        if (renderPending) return;
+        renderPending = true;
+        requestAnimationFrame(() => { render(canvas, ctx); renderPending = false; });
+    }
+
+    function render(targetCanvas, targetCtx, isExport = false, transparent = false) {
+        const cw = targetCanvas.width, ch = targetCanvas.height;
+        const bgVal = document.getElementById('colorBg').value;
+        
+        targetCtx.imageSmoothingEnabled = false;
+        targetCtx.clearRect(0, 0, cw, ch);
+        if (!transparent) { targetCtx.fillStyle = bgVal; targetCtx.fillRect(0, 0, cw, ch); }
+        if (!cvReady || !sourceMat) return;
+
+        if (needsRecalc) {
+            let threshValue = Math.min(254, parseInt(document.getElementById('threshold').value));
+            maskW = FIXED_SCAN_RES; maskH = Math.round(maskW * (sourceMat.rows / sourceMat.cols));
+            let gray = new cv.Mat(); cv.cvtColor(sourceMat, gray, cv.COLOR_RGBA2GRAY);
+            let resized = new cv.Mat(); cv.resize(gray, resized, new cv.Size(maskW, maskH));
+            let clahe = new cv.CLAHE(4.0, new cv.Size(8, 8));
+            let enhanced = new cv.Mat(); clahe.apply(resized, enhanced);
+            let blurred = new cv.Mat(); cv.GaussianBlur(enhanced, blurred, new cv.Size(3, 3), 0);
+            let binary = new cv.Mat(); 
+            cv.threshold(blurred, binary, threshValue, 255, cv.THRESH_BINARY_INV);
+            const temp = document.createElement('canvas'); temp.width = maskW; temp.height = maskH;
+            cv.imshow(temp, binary);
+            cachedMaskData = temp.getContext('2d').getImageData(0, 0, maskW, maskH).data;
+            gray.delete(); resized.delete(); enhanced.delete(); blurred.delete(); binary.delete(); clahe.delete();
+            if(!isExport) needsRecalc = false;
+        }
+
+        const data = cachedMaskData; if(!data) return;
+        const gScale = parseFloat(document.getElementById('graphicScale').value);
+        const dir = document.getElementById('graphicDir').value;
+        const sliceSize = parseInt(document.getElementById('miterLimit').value);
+        const pad = parseInt(document.getElementById('expansion').value);
+        const rangeScale = parseInt(document.getElementById('gradRange').value) / 100;
+        
+        targetCtx.save();
+        targetCtx.translate(cw/2, ch/2);
+        targetCtx.scale(gScale, gScale);
+        targetCtx.translate(-cw/2, -ch/2);
+        
+        const stepX = cw / maskW;
+        const stepY = ch / maskH;
+
+        if (dir === 'horiz') {
+            const rowStep = Math.max(1, Math.floor(sliceSize / stepY));
+            for (let my = 0; my < maskH; my += rowStep) {
+                let start = -1;
+                for (let mx = 0; mx <= maskW; mx++) {
+                    const isShape = mx < maskW ? data[(my * maskW + mx) * 4] > 128 : false;
+                    if (isShape && start === -1) start = mx;
+                    else if (!isShape && start !== -1) {
+                        drawSlice(targetCtx, (start * stepX) - pad, my * stepY, ((mx - start) * stepX) + pad * 2 + 1, (rowStep * stepY) + 1, false, rangeScale);
+                        start = -1;
+                    }
+                }
+            }
+        } else {
+            const colStep = Math.max(1, Math.floor(sliceSize / stepX));
+            for (let mx = 0; mx < maskW; mx += colStep) {
+                let start = -1;
+                for (let my = 0; my <= maskH; my++) {
+                    const isShape = my < maskH ? data[(my * maskW + mx) * 4] > 128 : false;
+                    if (isShape && start === -1) start = my;
+                    else if (!isShape && start !== -1) {
+                        drawSlice(targetCtx, mx * stepX, (start * stepY) - pad, (colStep * stepX) + 1, ((my - start) * stepY) + pad * 2 + 1, true, rangeScale);
+                        start = -1;
+                    }
+                }
+            }
+        }
+        targetCtx.restore();
+    }
+
+    function drawSlice(ctx, x, y, w, h, isVert, rangeScale) {
+        let g = isVert ? ctx.createLinearGradient(x, y, x, y + h) : ctx.createLinearGradient(x, y, x + w, y);
+        gradientStops.forEach(s => {
+            let p = Math.max(0, Math.min(1, (s.pos - 0.5) * rangeScale + 0.5));
+            g.addColorStop(p, s.color);
+        });
+        ctx.fillStyle = g; ctx.fillRect(Math.floor(x), Math.floor(y), Math.ceil(w), Math.ceil(h));
+    }
+
+    function exportHQ(format) {
+        if(!sourceMat) return;
+        const out = document.createElement('canvas'); 
+        out.width = canvas.width; 
+        out.height = canvas.height;
+        render(out, out.getContext('2d'), true, format === 'png');
+        const link = document.createElement('a'); link.download = `SLICE_ART_${Date.now()}.${format}`;
+        link.href = out.toDataURL(format === 'png' ? 'image/png' : 'image/jpeg', 1.0); link.click();
+    }
+
+    function downloadSVG() {
+        if (!cachedMaskData) return;
+        const cw = canvas.width, ch = canvas.height;
+        const gScale = parseFloat(document.getElementById('graphicScale').value);
+        const dir = document.getElementById('graphicDir').value;
+        const rangeScale = parseInt(document.getElementById('gradRange').value) / 100;
+        const bgVal = document.getElementById('colorBg').value;
+        const sliceSizeVal = parseInt(document.getElementById('miterLimit').value);
+        const padVal = parseInt(document.getElementById('expansion').value);
+
+        let stopsStr = gradientStops.map(s => {
+            let p = Math.max(0, Math.min(1, (s.pos - 0.5) * rangeScale + 0.5)) * 100;
+            return `<stop offset="${p}%" stop-color="${s.color}" />`;
+        }).join('');
+
+        let svg = `<svg viewBox="0 0 ${cw} ${ch}" width="${cw}" height="${ch}" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">`;
+        svg += `<rect width="100%" height="100%" fill="${bgVal}"/>`;
+        svg += `<defs><linearGradient id="gradH" x1="0" y1="0" x2="1" y2="0">${stopsStr}</linearGradient>`;
+        svg += `<linearGradient id="gradV" x1="0" y1="0" x2="0" y2="1">${stopsStr}</linearGradient></defs>`;
+        svg += `<g transform="translate(${cw/2} ${ch/2}) scale(${gScale}) translate(${-cw/2} ${-ch/2})">`;
+
+        const stepX = cw / maskW, stepY = ch / maskH;
+        const data = cachedMaskData;
+
+        if (dir === 'horiz') {
+            const rowStep = Math.max(1, Math.floor(sliceSizeVal / stepY));
+            for (let my = 0; my < maskH; my += rowStep) {
+                let start = -1;
+                for (let mx = 0; mx <= maskW; mx++) {
+                    const isShape = mx < maskW ? data[(my * maskW + mx) * 4] > 128 : false;
+                    if (isShape && start === -1) start = mx;
+                    else if (!isShape && start !== -1) {
+                        svg += `<rect x="${(start * stepX) - padVal}" y="${my * stepY}" width="${((mx - start) * stepX) + padVal * 2 + 1}" height="${(rowStep * stepY) + 1}" fill="url(#gradH)"/>`;
+                        start = -1;
+                    }
+                }
+            }
+        } else {
+            const colStep = Math.max(1, Math.floor(sliceSizeVal / stepX));
+            for (let mx = 0; mx < maskW; mx += colStep) {
+                let start = -1;
+                for (let my = 0; my <= maskH; my++) {
+                    const isShape = my < maskH ? data[(my * maskW + mx) * 4] > 128 : false;
+                    if (isShape && start === -1) start = my;
+                    else if (!isShape && start !== -1) {
+                        svg += `<rect x="${mx * stepX}" y="${(start * stepY) - padVal}" width="${(colStep * stepX) + 1}" height="${((my - start) * stepY) + padVal * 2 + 1}" fill="url(#gradV)"/>`;
+                        start = -1;
+                    }
+                }
+            }
+        }
+        svg += `</g></svg>`;
+        const blob = new Blob([svg], {type: 'image/svg+xml'});
+        const link = document.createElement('a'); link.download = `SLICE_ART_${Date.now()}.svg`;
+        link.href = URL.createObjectURL(blob); link.click();
+    }
+
+    function handleBgColor(v) { 
+        document.getElementById('hexBg').value = v.toUpperCase(); 
+        document.getElementById('colorBgBlock').style.backgroundColor = v; 
+        document.getElementById('canvasArea').style.backgroundColor = v;
+        requestRender(false); 
+    }
+    function handleBgHex(v) { 
+        if(/^#[0-9A-F]{6}$/i.test(v)) { 
+            document.getElementById('colorBg').value = v; 
+            document.getElementById('colorBgBlock').style.backgroundColor = v; 
+            document.getElementById('canvasArea').style.backgroundColor = v;
+            requestRender(false); 
+        } 
+    }
+    function updateCurrStopColor(v) { if(/^#[0-9A-F]{6}$/i.test(v)) { gradientStops[activeStopIndex].color = v; renderGradientUI(); requestRender(false); } }
+    
+    init();
+</script>
+</body>
+</html>
+    
+  </body>
+  
+</html>
